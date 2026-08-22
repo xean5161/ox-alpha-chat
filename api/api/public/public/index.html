@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Ox Alpha Chat</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #212121;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      border-bottom: 1px solid #3a3a3a;
+      font-weight: bold;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 30px 15%;
+    }
+
+    .message {
+      margin-bottom: 25px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .label {
+      font-weight: bold;
+      margin-bottom: 7px;
+    }
+
+    .user .label {
+      color: #fff;
+    }
+
+    .assistant .label {
+      color: #9ca3af;
+    }
+
+    .welcome {
+      text-align: center;
+      margin-top: 20vh;
+      color: #aaa;
+    }
+
+    form {
+      display: flex;
+      gap: 10px;
+      padding: 20px 15%;
+      border-top: 1px solid #3a3a3a;
+    }
+
+    textarea {
+      flex: 1;
+      resize: none;
+      min-height: 55px;
+      max-height: 150px;
+      border: 1px solid #555;
+      border-radius: 14px;
+      padding: 15px;
+      background: #2f2f2f;
+      color: #fff;
+      outline: none;
+      font-size: 16px;
+    }
+
+    textarea:focus {
+      border-color: #777;
+    }
+
+    button {
+      width: 55px;
+      border: none;
+      border-radius: 14px;
+      background: #fff;
+      color: #000;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 700px) {
+      #messages {
+        padding: 20px;
+      }
+
+      form {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  🐂 Ox Alpha Chat
+</header>
+
+<div id="messages">
+
+  <div class="welcome" id="welcome">
+    <h2>Ox Alpha</h2>
+    <p>Tanya apa saja.</p>
+  </div>
+
+</div>
+
+<form id="chatForm">
+
+  <textarea
+    id="input"
+    placeholder="Kirim pesan..."
+    autocomplete="off"
+    required
+  ></textarea>
+
+  <button id="send" type="submit">
+    ➤
+  </button>
+
+</form>
+
+<script>
+
+  const messagesEl =
+    document.getElementById("messages");
+
+  const form =
+    document.getElementById("chatForm");
+
+  const input =
+    document.getElementById("input");
+
+  const send =
+    document.getElementById("send");
+
+  const welcome =
+    document.getElementById("welcome");
+
+
+  // Menyimpan percakapan selama halaman terbuka
+  const messages = [];
+
+
+  function escapeHtml(text) {
+
+    return text
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+
+  }
+
+
+  function addMessage(role, text) {
+
+    welcome.style.display = "none";
+
+    const div =
+      document.createElement("div");
+
+    div.className =
+      `message ${role}`;
+
+    div.innerHTML = `
+      <div class="label">
+        ${role === "user" ? "Kamu" : "Ox Alpha"}
+      </div>
+
+      <div>
+        ${escapeHtml(text)}
+      </div>
+    `;
+
+    messagesEl.appendChild(div);
+
+    messagesEl.scrollTop =
+      messagesEl.scrollHeight;
+
+    return div;
+  }
+
+
+  form.addEventListener(
+    "submit",
+    async function(event) {
+
+      event.preventDefault();
+
+      const text =
+        input.value.trim();
+
+      if (!text) return;
+
+      input.value = "";
+
+      send.disabled = true;
+
+
+      messages.push({
+        role: "user",
+        content: text
+      });
+
+
+      addMessage(
+        "user",
+        text
+      );
+
+
+      const loading =
+        addMessage(
+          "assistant",
+          "Ox Alpha sedang berpikir..."
+        );
+
+
+      try {
+
+        const response =
+          await fetch(
+            "/api/chat",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                messages
+              })
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (!response.ok) {
+
+          throw new Error(
+            data.error ||
+            "Request gagal"
+          );
+
+        }
+
+
+        loading.remove();
+
+
+        addMessage(
+          "assistant",
+          data.reply
+        );
+
+
+        messages.push({
+          role: "assistant",
+          content: data.reply
+        });
+
+
+      } catch (error) {
+
+        loading.remove();
+
+        addMessage(
+          "assistant",
+          "❌ Error: " +
+          error.message
+        );
+
+      }
+
+
+      send.disabled = false;
+
+      input.focus();
+
+    }
+  );
+
+
+  input.addEventListener(
+    "keydown",
+    function(event) {
+
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey
+      ) {
+
+        event.preventDefault();
+
+        form.requestSubmit();
+
+      }
+
+    }
+  );
+
+</script>
+
+</body>
+</html>
